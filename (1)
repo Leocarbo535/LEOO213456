@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Privado - Acceso con Google</title>
+    <!-- Carga de Tailwind CSS para el estilo -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Carga de la fuente Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Estilos generales y fuente Inter */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f4f7f9;
+        }
+        /* Estilos para las pantallas de acceso */
+        .access-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #f4f7f9;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+        /* Altura dinámica para la ventana de chat */
+        #chat-window {
+            height: calc(100vh - 12rem);
+            max-height: 80vh;
+        }
+        /* Estilo para el ID de usuario */
+        #user-info {
+            font-size: 0.75rem;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <!-- 1. PANTALLA DE CÓDIGO BYPASS (Inicialmente visible) -->
+    <div id="bypass-screen" class="access-screen p-4">
+        <div class="bg-white p-8 rounded-xl shadow-2xl max-w-sm w-full text-center">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Cargando Verificación...</h2>
+            <p class="text-gray-600 mb-6">Comprobando si el código secreto ha sido establecido.</p>
+            <input type="password" id="bypass-input" placeholder="Cargando..."
+                   class="w-full p-3 border border-gray-300 rounded-lg text-center focus:ring-indigo-500 focus:border-indigo-500 transition duration-150 mb-4" disabled>
+            <button id="bypass-button"
+                    class="w-full px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition duration-150 disabled:opacity-50" disabled>
+                Cargando...
+            </button>
+            <p id="bypass-error" class="text-red-500 text-sm mt-3 hidden"></p>
+        </div>
+    </div>
+
+    <!-- 2. PANTALLA DE LOGIN (Visible después del bypass, si no hay sesión) -->
+    <div id="login-screen" class="access-screen p-4 hidden">
+        <div class="bg-white p-8 rounded-xl shadow-2xl max-w-sm w-full text-center">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Inicia Sesión</h2>
+            <p class="text-gray-600 mb-6">Usa tu cuenta de Gmail para acceder al chat.</p>
+            <button id="google-login-button"
+                    class="w-full flex items-center justify-center px-6 py-3 bg-red-600 text-white font-semibold rounded-lg shadow-md hover:bg-red-700 transition duration-150">
+                <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12.000,4.8c1.332,0,2.651,0.22,3.882,0.64l3.181-3.182C17.045,1.209,14.549,0,12.000,0C7.319,0,3.189,2.055,0,5.348l6.027,4.614C7.147,7.67,9.458,6.4,12.000,6.4L12.000,4.8z"/>
+                    <path d="M23.639,12.000c0-0.748-0.057-1.478-0.165-2.181H12.000v4.208h6.425c-0.301,1.527-1.189,2.839-2.529,3.734l3.182,3.181C21.059,19.349,23.639,16.059,23.639,12.000L23.639,12.000z"/>
+                    <path d="M6.028,14.773c-0.722-2.15-0.722-4.597,0-6.746L0,5.348c-3.189,3.293-3.189,8.711,0,12.004L6.028,14.773z"/>
+                    <path d="M12.000,24.000c3.284,0,6.568-1.282,9.006-3.719l-3.182-3.181c-1.424,0.954-3.235,1.52-5.824,1.52c-4.577,0-8.494-3.085-9.845-7.399l-6.028,4.614C3.189,21.945,7.319,24.000,12.000,24.000L12.000,24.000z"/>
+                </svg>
+                Iniciar Sesión con Google
+            </button>
+        </div>
+    </div>
+
+
+    <!-- 3. CONTENEDOR PRINCIPAL DEL CHAT (Inicialmente oculto) -->
+    <div id="main-chat-container" class="w-full max-w-2xl bg-white shadow-xl rounded-xl flex-col h-[90vh] hidden">
+        
+        <!-- Encabezado y Barra de Usuario -->
+        <header class="p-4 border-b border-gray-200 bg-gray-50 rounded-t-xl">
+            <div class="flex justify-between items-center">
+                <h1 class="text-2xl font-bold text-gray-800">Chat Privado</h1>
+                <button id="sign-out-button" 
+                        class="px-3 py-1 bg-red-500 text-white text-xs font-semibold rounded-full hover:bg-red-600 transition">
+                    Salir
+                </button>
+            </div>
+            
+            <p class="text-sm text-gray-600 mt-1">
+                Conectado como: <span id="user-name" class="font-semibold text-indigo-700">Cargando...</span>
+            </p>
+            <div id="user-info" class="mt-2 text-gray-500">
+                ID Único (Comparte esto con tus amigos): <span id="user-id" class="font-mono text-xs break-all">Cargando...</span>
+            </div>
+        </header>
+
+        <!-- Ventana de Mensajes -->
+        <div id="chat-window" class="flex-grow overflow-y-auto p-4 space-y-4">
+            <!-- Los mensajes se cargarán aquí -->
+            <div id="loading-indicator" class="text-center text-gray-500 mt-10">
+                Cargando mensajes...
+            </div>
+        </div>
+
+        <!-- Área de Entrada de Mensajes -->
+        <footer class="p-4 border-t border-gray-200 bg-white rounded-b-xl">
+            <div class="flex space-x-3">
+                <input type="text" id="message-input" placeholder="Escribe tu mensaje aquí..."
+                       class="flex-grow p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150"
+                       disabled>
+                <button id="send-button"
+                        class="px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition duration-150 disabled:opacity-50"
+                        disabled>
+                    Enviar
+                </button>
+            </div>
+            <p id="error-message" class="text-red-500 text-sm mt-2 hidden">No se pudo enviar el mensaje.</p>
+        </footer>
+    </div>
+
+    <!-- Script de Firebase -->
+    <script type="module">
+        // Importaciones de Firebase
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { 
+            getAuth, 
+            GoogleAuthProvider, 
+            signInWithPopup, 
+            onAuthStateChanged, 
+            signOut,
+            signInWithCustomToken,
+            signInAnonymously // Importación necesaria para la corrección
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { 
+            getFirestore, collection, addDoc, query, onSnapshot, serverTimestamp, setLogLevel, 
+            doc, getDoc, setDoc // Importaciones añadidas para gestionar el código secreto
+        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Establecer nivel de log para depuración de Firestore
+        setLogLevel('Debug');
+
+        // --- Referencias del DOM ---
+        const bypassScreen = document.getElementById('bypass-screen');
+        const bypassInput = document.getElementById('bypass-input');
+        const bypassButton = document.getElementById('bypass-button');
+        const bypassError = document.getElementById('bypass-error');
+        const loginScreen = document.getElementById('login-screen');
+        const googleLoginButton = document.getElementById('google-login-button');
+        const mainChatContainer = document.getElementById('main-chat-container');
+        const chatWindow = document.getElementById('chat-window');
+        const messageInput = document.getElementById('message-input');
+        const sendButton = document.getElementById('send-button');
+        const userIdDisplay = document.getElementById('user-id');
+        const userNameDisplay = document.getElementById('user-name');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const errorMessageDisplay = document.getElementById('error-message');
+        const signOutButton = document.getElementById('sign-out-button');
+        
+        // --- Constantes y Variables Globales ---
+        // Variables proporcionadas por el entorno Canvas
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        
+        const CODE_DOC_PATH = `artifacts/${appId}/public/data/settings`; // Colección para guardar el código
+        
+        let db;
+        let auth;
+        let currentUserId = null;
+        let currentUserName = null;
+        let hasBypassed = false;
+        let isCodeSet = false; // Indica si el código secreto ya existe en Firestore
+
+
+        // --- Funciones de Flujo de Acceso ---
+        
+        /**
+         * Comprueba si el código secreto ya existe en Firestore para determinar la pantalla a mostrar.
+         * Esta función ahora se llama después de que se establece una sesión de autenticación (anónima/token).
+         */
+        async function checkIfCodeIsSet() {
+            if (!db) return;
+            
+            bypassInput.disabled = true;
+            bypassButton.disabled = true;
+            
+            // Usamos un documento fijo dentro de la colección 'settings'
+            const docRef = doc(db, CODE_DOC_PATH, "access_code"); 
+            
+            try {
+                const docSnap = await getDoc(docRef);
+                
+                bypassInput.disabled = false;
+                bypassButton.disabled = false;
+
+                if (docSnap.exists() && docSnap.data().code) {
+                    isCodeSet = true;
+                    // Modo ENTRAR CÓDIGO
+                    document.querySelector('#bypass-screen h2').textContent = "Acceso Requerido";
+                    document.querySelector('#bypass-screen p').textContent = "Introduce el código secreto para continuar:";
+                    bypassInput.placeholder = "Código Secreto";
+                    bypassButton.textContent = "Entrar";
+                } else {
+                    isCodeSet = false;
+                    // Modo ESTABLECER CÓDIGO (Solo para el primer usuario)
+                    document.querySelector('#bypass-screen h2').textContent = "Establecer Código Inicial";
+                    document.querySelector('#bypass-screen p').textContent = "Eres el primer usuario. Define el código secreto para todos:";
+                    bypassInput.placeholder = "Nuevo Código Secreto";
+                    bypassButton.textContent = "Establecer y Continuar";
+                }
+            } catch (error) {
+                console.error("Error comprobando el código de acceso:", error);
+                // Si la autenticación base falló o hay un problema de reglas de seguridad, mostramos error
+                bypassError.textContent = 'Error crítico: Permisos insuficientes para leer configuración. Revisa las reglas de Firestore.';
+                bypassError.classList.remove('hidden');
+                bypassInput.disabled = true;
+                bypassButton.disabled = true;
+            }
+        }
+
+
+        // 1. Manejo del Código Bypass (MODIFICADO para establecer/comprobar)
+        const handleBypass = async () => {
+            const code = bypassInput.value.trim();
+            bypassError.classList.add('hidden');
+            bypassButton.disabled = true;
+
+            if (!code) {
+                bypassError.textContent = 'Por favor, introduce un código.';
+                bypassError.classList.remove('hidden');
+                bypassButton.disabled = false;
+                return;
+            }
+
+            const docRef = doc(db, CODE_DOC_PATH, "access_code");
+
+            if (!isCodeSet) {
+                // MODO 1: ESTABLECER EL CÓDIGO (Primera vez)
+                try {
+                    await setDoc(docRef, { code: code, timestamp: serverTimestamp() });
+                    isCodeSet = true;
+                    bypassScreen.classList.add('hidden');
+                    hasBypassed = true;
+                    // Ya estamos autenticados (anónimo o custom token)
+                } catch (error) {
+                    console.error("Error al establecer el código:", error);
+                    bypassError.textContent = 'Error al guardar el código. Intenta de nuevo.';
+                    bypassError.classList.remove('hidden');
+                } finally {
+                    bypassButton.disabled = false;
+                }
+
+            } else {
+                // MODO 2: COMPROBAR EL CÓDIGO (Usuarios posteriores)
+                try {
+                    const docSnap = await getDoc(docRef);
+                    const storedCode = docSnap.exists() ? docSnap.data().code : null;
+
+                    if (storedCode && storedCode === code) {
+                        // Código Correcto
+                        bypassScreen.classList.add('hidden');
+                        hasBypassed = true;
+                        // Ya estamos autenticados (anónimo o custom token)
+                    } else {
+                        // Código Incorrecto
+                        bypassError.textContent = 'Código secreto incorrecto. Inténtalo de nuevo.';
+                        bypassError.classList.remove('hidden');
+                        bypassInput.value = '';
+                    }
+                } catch (error) {
+                    console.error("Error al comprobar el código:", error);
+                    bypassError.textContent = 'Error al conectar con la base de datos.';
+                    bypassError.classList.remove('hidden');
+                } finally {
+                    bypassButton.disabled = false;
+                }
+            }
+        };
+
+        bypassButton.addEventListener('click', handleBypass);
+        bypassInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                handleBypass();
+            }
+        });
+
+
+        // 2. Función de Inicialización Principal (REFACTORIZADA)
+        async function initializeAppAndAuth() {
+            try {
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                // 1. Establecer contexto de autenticación base (anónimo o token custom)
+                // ESTO RESUELVE EL ERROR DE PERMISOS
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    // Si no hay token, iniciamos sesión anónimamente para satisfacer las reglas de seguridad
+                    // que requieren que request.auth no sea nulo.
+                    await signInAnonymously(auth);
+                }
+                
+                // 2. Ahora que tenemos un usuario autenticado (aunque sea anónimo), comprobamos el código de acceso
+                await checkIfCodeIsSet();
+
+                // 3. Listener principal del Estado de Autenticación (maneja Google Sign-in)
+                onAuthStateChanged(auth, (user) => {
+                    // Solo procedemos si el código de acceso ha sido introducido
+                    if (!hasBypassed) return; 
+
+                    if (user) {
+                        // Usuario logueado (Google o token/anónimo)
+                        currentUserId = user.uid;
+                        // Usar nombre de Google o un nombre genérico si es anónimo.
+                        currentUserName = user.displayName || user.email?.split('@')[0] || 'Usuario Chat'; 
+                        
+                        userNameDisplay.textContent = currentUserName;
+                        userIdDisplay.textContent = currentUserId;
+                        
+                        loginScreen.classList.add('hidden');
+                        mainChatContainer.classList.remove('hidden');
+                        mainChatContainer.classList.add('flex'); // Mostrar el chat
+                        
+                        messageInput.disabled = false;
+                        sendButton.disabled = false;
+                        setupChatListener(); // Empezar a escuchar mensajes
+                    } else {
+                        // No hay usuario (por ejemplo, después de cerrar sesión de Google)
+                        mainChatContainer.classList.add('hidden');
+                        loginScreen.classList.remove('hidden');
+                    }
+                });
+
+            } catch (e) {
+                console.error("Error al inicializar o autenticar Firebase.", e);
+                userIdDisplay.textContent = 'ERROR DE CONFIG/AUTH';
+                bypassError.textContent = 'Error crítico de conexión. Consulta la consola.';
+                bypassError.classList.remove('hidden');
+                bypassInput.disabled = true;
+                bypassButton.disabled = true;
+            }
+        }
+
+        // Iniciar la aplicación
+        initializeAppAndAuth();
+        
+        // 4. Lógica de Inicio de Sesión con Google
+        const signInWithGoogle = async () => {
+            const provider = new GoogleAuthProvider();
+            try {
+                await signInWithPopup(auth, provider);
+            } catch (error) {
+                console.error("Error al iniciar sesión con Google:", error.code, error.message);
+            }
+        };
+
+        googleLoginButton.addEventListener('click', signInWithGoogle);
+
+        // 5. Lógica de Cerrar Sesión
+        const handleSignOut = async () => {
+            try {
+                await signOut(auth);
+                // Ocultar chat, mostrar pantalla de login
+                mainChatContainer.classList.add('hidden');
+                loginScreen.classList.remove('hidden');
+                // Al cerrar sesión, comprobamos el estado del código de nuevo para refrescar la UI
+                await checkIfCodeIsSet(); 
+            } catch (error) {
+                console.error("Error al cerrar sesión:", error);
+            }
+        };
+
+        signOutButton.addEventListener('click', handleSignOut);
+
+
+        // --- Lógica de Chat (Actualizada para usar Nombres) ---
+
+        const sendMessage = async () => {
+            const messageText = messageInput.value.trim();
+
+            if (!messageText || !db || !currentUserId) {
+                console.warn("No se puede enviar el mensaje. Faltan datos o no está autenticado.");
+                return;
+            }
+
+            // Ruta de la colección: /artifacts/{appId}/public/data/chat-messages
+            const chatCollectionRef = collection(db, `artifacts/${appId}/public/data/chat-messages`);
+
+            try {
+                // AGREGAR EL NOMBRE DEL REMITENTE
+                await addDoc(chatCollectionRef, {
+                    text: messageText,
+                    senderId: currentUserId,
+                    senderName: currentUserName, // Nuevo campo
+                    timestamp: serverTimestamp() 
+                });
+
+                messageInput.value = ''; 
+                errorMessageDisplay.classList.add('hidden');
+            } catch (error) {
+                console.error("Error al escribir el mensaje en Firestore: ", error);
+                errorMessageDisplay.classList.remove('hidden');
+            }
+        };
+
+        sendButton.addEventListener('click', sendMessage);
+
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+
+        const setupChatListener = () => {
+            if (!db) return;
+
+            loadingIndicator.classList.remove('hidden');
+
+            const chatCollectionRef = collection(db, `artifacts/${appId}/public/data/chat-messages`);
+            const q = query(chatCollectionRef);
+
+            onSnapshot(q, (snapshot) => {
+                loadingIndicator.classList.add('hidden');
+                
+                const messages = [];
+                snapshot.forEach(doc => {
+                    messages.push({ id: doc.id, ...doc.data() });
+                });
+
+                // Ordenar mensajes por timestamp (localmente, para evitar el error de índice de Firestore)
+                messages.sort((a, b) => {
+                    const tsA = a.timestamp ? a.timestamp.toDate().getTime() : Infinity;
+                    const tsB = b.timestamp ? b.timestamp.toDate().getTime() : Infinity;
+                    return tsA - tsB;
+                });
+
+                renderMessages(messages);
+            }, (error) => {
+                console.error("Error al escuchar mensajes: ", error);
+                loadingIndicator.textContent = 'Error al cargar los mensajes.';
+            });
+        };
+
+        const renderMessages = (messages) => {
+            chatWindow.innerHTML = ''; // Limpiar mensajes anteriores
+
+            messages.forEach(msg => {
+                const isMe = msg.senderId === currentUserId;
+                const senderDisplay = msg.senderName || msg.senderId; // Usar el nombre si existe
+
+                // Determinar clases de estilo (propio o de amigo)
+                const containerClasses = isMe ? 'flex justify-end' : 'flex justify-start';
+                const bubbleClasses = isMe 
+                    ? 'bg-indigo-600 text-white rounded-bl-xl rounded-t-xl' 
+                    : 'bg-gray-200 text-gray-800 rounded-br-xl rounded-t-xl';
+                const timeClasses = isMe ? 'text-white/70' : 'text-gray-500';
+
+                // Formatear el timestamp
+                let time = '';
+                if (msg.timestamp) {
+                    const date = msg.timestamp.toDate();
+                    time = date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+                }
+
+                // Crear el elemento del mensaje
+                const messageElement = document.createElement('div');
+                messageElement.className = containerClasses;
+
+                messageElement.innerHTML = `
+                    <div class="max-w-xs md:max-w-md">
+                        <div class="px-4 py-2 ${bubbleClasses} shadow-md break-words">
+                            <div class="font-semibold text-sm mb-1 opacity-90 ${timeClasses}">
+                                ${isMe ? 'Tú' : senderDisplay}
+                            </div>
+                            <p class="text-base">${msg.text}</p>
+                            <span class="text-xs mt-1 block ${timeClasses} ${isMe ? 'text-right' : 'text-left'}">${time}</span>
+                        </div>
+                    </div>
+                `;
+                chatWindow.appendChild(messageElement);
+            });
+
+            // Desplazar al final de la ventana de chat
+            chatWindow.scrollTop = chatWindow.scrollHeight;
+        };
+
+    </script>
+</body>
+</html>
